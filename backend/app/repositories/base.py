@@ -19,10 +19,11 @@ class SupabaseRepository:
             ) from exc
 
     def get(self, item_id: str) -> dict[str, Any]:
+        # maybe_single().execute() returns None (not a response) when no row matches.
         response = self._execute(
             self.client.table(self.table).select("*").eq("id", item_id).maybe_single()
         )
-        if not response.data:
+        if response is None or not response.data:
             raise HTTPException(status_code=404, detail=f"{self.table.rstrip('s').title()} not found")
         return response.data
 

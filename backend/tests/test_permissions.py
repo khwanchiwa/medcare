@@ -23,7 +23,8 @@ class Query:
         return self
 
     def execute(self):
-        return Response(self.data)
+        # Match supabase-py: maybe_single().execute() returns None when no row is found.
+        return None if self.data is None else Response(self.data)
 
 
 class Admin:

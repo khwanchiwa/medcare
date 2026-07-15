@@ -19,6 +19,12 @@ export function getAccessToken(): string | null {
     : localStorage.getItem(ACCESS_TOKEN_KEY);
 }
 
+export function getRefreshToken(): string | null {
+  return typeof window === "undefined"
+    ? null
+    : localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
 export function getStoredUser(): AuthUser | null {
   if (typeof window === "undefined") return null;
   const value = localStorage.getItem(USER_KEY);

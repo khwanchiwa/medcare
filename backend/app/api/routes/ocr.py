@@ -132,9 +132,8 @@ async def scan_medicine_label(
     data = result.get("data") or {}
     medicine_name = _clean_ocr_value(data.get("medicine_name"))
     instruction = _clean_ocr_value(data.get("usage_instruction"))
-    needs_review = instruction == "ไม่พบ" or str(result.get("error") or "").find(
-        "low_usage_ocr_confidence"
-    ) >= 0
+    # _clean_ocr_value maps "ไม่พบ" (and blanks) to "", so review when nothing usable remains.
+    needs_review = not instruction or "low_usage_ocr_confidence" in str(result.get("error") or "")
     form_fields = _medicine_form_fields(medicine_name, "" if needs_review else instruction)
     return {
         "document_type": "MedicineLabel",

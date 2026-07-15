@@ -22,3 +22,14 @@ def create_admin_client() -> Client:
         settings.supabase_secret_key,
         options=ClientOptions(auto_refresh_token=False, persist_session=False),
     )
+
+
+def fetch_one_or_none(query):
+    """Execute a filtered select expecting at most one row.
+
+    supabase-py returns ``None`` (not a response object) from
+    ``maybe_single().execute()`` when no row matches, so callers must never
+    chain ``.data`` onto it directly.
+    """
+    response = query.maybe_single().execute()
+    return response.data if response else None
