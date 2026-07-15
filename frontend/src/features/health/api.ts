@@ -36,8 +36,31 @@ function authHeaders(): HeadersInit {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export type MedicationLogRecord = {
+  id: string;
+  medication_id: string;
+  patient_id: string;
+  scheduled_at: string;
+  taken_at: string | null;
+  status: "pending" | "taken" | "missed";
+  note: string | null;
+  created_at: string;
+};
+
 export function listMedications(): Promise<MedicationRecord[]> {
   return listMedicationsForPatient();
+}
+
+export function getMedication(id: string): Promise<MedicationRecord> {
+  return apiRequest<MedicationRecord>(`/medications/${id}`, { headers: authHeaders() });
+}
+
+export function listMedicationLogs(patientId?: string): Promise<MedicationLogRecord[]> {
+  const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
+  return apiRequest<MedicationLogRecord[]>(`/medications/logs${query}`, {
+    headers: authHeaders(),
+    cacheTtlMs: 0,
+  });
 }
 
 export function listMedicationsForPatient(patientId?: string): Promise<MedicationRecord[]> {
@@ -90,6 +113,10 @@ export function markMedicationTaken(id: string): Promise<MedicationRecord> {
 
 export function listAppointments(): Promise<AppointmentRecord[]> {
   return listAppointmentsForPatient();
+}
+
+export function getAppointment(id: string): Promise<AppointmentRecord> {
+  return apiRequest<AppointmentRecord>(`/appointments/${id}`, { headers: authHeaders() });
 }
 
 export function listAppointmentsForPatient(patientId?: string): Promise<AppointmentRecord[]> {

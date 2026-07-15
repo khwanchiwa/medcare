@@ -3,9 +3,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { saveAppointment } from "@/features/health/api";
+import { saveAppointment, type AppointmentRecord } from "@/features/health/api";
 import { ApiError } from "@/lib/api-client";
-import type { Appointment } from "@/mocks/mock-appointments";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
@@ -19,15 +18,15 @@ export function AppointmentForm({
   returnTo = "/patient/dashboard",
   onSaved,
 }: {
-  appointment?: Appointment;
+  appointment?: AppointmentRecord;
   patientId?: string;
   returnTo?: string;
   onSaved?: () => void;
 }) {
   const router = useRouter();
   const [title, setTitle] = useState(appointment?.title ?? "");
-  const [date, setDate] = useState(appointment?.date ?? "");
-  const [time, setTime] = useState(appointment?.time ?? "");
+  const [date, setDate] = useState(appointment?.appointment_date ?? "");
+  const [time, setTime] = useState(appointment?.appointment_time.slice(0, 5) ?? "");
   const [notes, setNotes] = useState(appointment?.notes ?? "");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -40,7 +39,7 @@ export function AppointmentForm({
       await saveAppointment(
         {
           title: title.trim(),
-          hospital: null,
+          hospital: appointment?.hospital ?? null,
           appointment_date: date,
           appointment_time: time,
           notes: notes.trim() || null,

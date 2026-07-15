@@ -1,4 +1,5 @@
-import { clearSession } from "@/lib/auth/session";
+import type { AuthResponse } from "@/features/auth/types";
+import { clearSession, getAccessToken, getRefreshToken, saveSession } from "@/lib/auth/session";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/backend";
@@ -98,7 +99,35 @@ export async function apiRequest<T>(
   return request;
 }
 
-async function performRequest<T>(path: string, init: RequestInit): Promise<T> {
+let refreshPromise: Promise<boolean> | null = null;
+
+function refreshSessionOnce(): Promise<boolean> {
+  refreshPromise ??= requestNewSession().finally(() => {
+    refreshPromise = null;
+  });
+  return refreshPromise;
+}
+
+async function requestNewSession(): Promise<boolean> {
+  const refreshToken = getRefreshToken();
+  if (!refreshToken) return false;
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ refresh_token: refreshToken }),
+    });
+    if (!response.ok) return false;
+    const session = (await response.json()) as AuthResponse;
+    if (!session.access_token || !session.refresh_token) return false;
+    saveSession(session);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function performRequest<T>(path: string, init: RequestInit, allowRefresh = true): Promise<T> {
   const isFormData = typeof FormData !== "undefined" && init.body instanceof FormData;
   const requestInit: RequestInit = {
     ...init,
@@ -123,6 +152,12 @@ async function performRequest<T>(path: string, init: RequestInit): Promise<T> {
       // Keep the user-friendly fallback for non-JSON server errors.
     }
     if (isExpiredSession(message, response.status)) {
+      const wasAuthenticated = authorizationValue(init.headers) !== "anonymous";
+      if (allowRefresh && wasAuthenticated && typeof window !== "undefined" && (await refreshSessionOnce())) {
+        const headers = new Headers(init.headers);
+        headers.set("Authorization", `Bearer ${getAccessToken()}`);
+        return performRequest<T>(path, { ...init, headers }, false);
+      }
       redirectToLoginForExpiredSession();
       throw new ApiError("เซสชันหมดอายุ กรุณาเข้าสู่ระบบใหม่", response.status);
     }

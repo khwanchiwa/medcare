@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from supabase import Client
 
 from app.api.deps import AuthUser
+from app.database.supabase import fetch_one_or_none
 from app.models import Role
 
 
@@ -125,17 +126,11 @@ def list_legacy_medications(admin: Client, current_user: AuthUser, target_user_i
 
 
 def get_legacy_medication(admin: Client, current_user: AuthUser, medication_id: str) -> dict[str, Any]:
-    response = (
-        admin.table("Medicine")
-        .select("*")
-        .eq("id", medication_id)
-        .maybe_single()
-        .execute()
-    )
-    if not response.data:
+    record = fetch_one_or_none(admin.table("Medicine").select("*").eq("id", medication_id))
+    if not record:
         raise HTTPException(status_code=404, detail="ไม่พบรายการยา")
-    _resolve_legacy_target_user_id(admin, current_user, response.data.get("user_id"))
-    return _medication_from_legacy(response.data, current_user)
+    _resolve_legacy_target_user_id(admin, current_user, record.get("user_id"))
+    return _medication_from_legacy(record, current_user)
 
 
 def create_legacy_medication(admin: Client, current_user: AuthUser, data: dict[str, Any], target_user_id: str | int | None = None) -> dict[str, Any]:
@@ -249,19 +244,13 @@ def list_legacy_appointments(admin: Client, current_user: AuthUser, target_user_
 
 
 def get_legacy_appointment(admin: Client, current_user: AuthUser, appointment_id: str) -> dict[str, Any]:
-    response = (
-        admin.table("Appointment")
-        .select("*")
-        .eq("id", appointment_id)
-        .maybe_single()
-        .execute()
-    )
-    if not response.data:
+    record = fetch_one_or_none(admin.table("Appointment").select("*").eq("id", appointment_id))
+    if not record:
         raise HTTPException(status_code=404, detail="ไม่พบนัดหมาย")
-    _resolve_legacy_target_user_id(admin, current_user, response.data.get("user_id"))
-    appointment = _appointment_from_legacy(response.data, current_user)
+    _resolve_legacy_target_user_id(admin, current_user, record.get("user_id"))
+    appointment = _appointment_from_legacy(record, current_user)
     try:
-        link = admin.table("calendar_event_links").select("google_event_id").eq("appointment_id", appointment_id).maybe_single().execute().data
+        link = fetch_one_or_none(admin.table("calendar_event_links").select("google_event_id").eq("appointment_id", appointment_id))
         appointment["google_event_id"] = (link or {}).get("google_event_id")
     except Exception:
         pass

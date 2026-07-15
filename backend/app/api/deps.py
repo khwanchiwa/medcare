@@ -5,7 +5,7 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from supabase import Client
 
-from app.database.supabase import create_admin_client, create_public_client
+from app.database.supabase import create_admin_client, create_public_client, fetch_one_or_none
 from app.models import Role
 from app.services.profiles import get_profile
 
@@ -79,16 +79,13 @@ def require_patient_access(
     if current_user.role != Role.CAREGIVER:
         raise HTTPException(status_code=403, detail="Patient access denied")
 
-    response = (
+    relationship = fetch_one_or_none(
         admin.table("caregiver_relationships")
         .select("can_edit_medication,can_edit_appointment,can_view_history")
         .eq("patient_id", patient_id)
         .eq("caregiver_id", current_user.id)
         .eq("status", "approved")
-        .maybe_single()
-        .execute()
     )
-    relationship = response.data
     if not relationship:
         raise HTTPException(status_code=403, detail="Patient access denied")
     allowed = {

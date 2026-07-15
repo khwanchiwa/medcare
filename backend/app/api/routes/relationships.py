@@ -4,6 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from app.api.deps import AdminClient, AuthUser, CurrentUser, require_role
+from app.database.supabase import fetch_one_or_none
 from app.models import RelationshipStatus, Role
 from app.schemas.common import Message
 from app.schemas.relationships import (
@@ -97,24 +98,20 @@ def _legacy_relationship(
 
 
 def _find_legacy_caregiver(admin, email: str) -> dict[str, Any]:
-    response = (
-        admin.table("Users")
-        .select("*")
-        .ilike("email", email.strip().lower())
-        .maybe_single()
-        .execute()
+    caregiver = fetch_one_or_none(
+        admin.table("Users").select("*").ilike("email", email.strip().lower())
     )
-    if not response.data:
+    if not caregiver:
         raise HTTPException(
             status_code=404,
             detail="ไม่พบบัญชีผู้ดูแลจากอีเมลนี้ กรุณาให้ผู้ดูแลสมัครบัญชีบทบาทผู้ดูแลก่อน",
         )
-    if _normalized_role(response.data.get("role")) != Role.CAREGIVER.value:
+    if _normalized_role(caregiver.get("role")) != Role.CAREGIVER.value:
         raise HTTPException(
             status_code=409,
             detail="พบอีเมลนี้แล้ว แต่บัญชีนี้ยังไม่ใช่บทบาทผู้ดูแล กรุณาใช้อีเมลของบัญชีผู้ดูแล",
         )
-    return response.data
+    return caregiver
 
 
 def _patient_record_from_user(admin, patient_user: dict[str, Any]) -> dict[str, Any]:
@@ -142,28 +139,18 @@ def _legacy_invitation_relationship(
     caregiver_user: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     if patient_user is None:
-        patient_user_response = (
-            admin.table("Users")
-            .select("*")
-            .eq("id", invitation["patient_user_id"])
-            .maybe_single()
-            .execute()
+        patient_user = fetch_one_or_none(
+            admin.table("Users").select("*").eq("id", invitation["patient_user_id"])
         )
-        if not patient_user_response.data:
+        if not patient_user:
             raise HTTPException(status_code=404, detail="Patient account not found")
-        patient_user = patient_user_response.data
 
     if caregiver_user is None:
-        caregiver_user_response = (
-            admin.table("Users")
-            .select("*")
-            .eq("id", invitation["caregiver_user_id"])
-            .maybe_single()
-            .execute()
+        caregiver_user = fetch_one_or_none(
+            admin.table("Users").select("*").eq("id", invitation["caregiver_user_id"])
         )
-        if not caregiver_user_response.data:
+        if not caregiver_user:
             raise HTTPException(status_code=404, detail="Caregiver account not found")
-        caregiver_user = caregiver_user_response.data
 
     return _legacy_relationship(
         _patient_record_from_user(admin, patient_user),
@@ -204,20 +191,16 @@ def _list_legacy_relationships(admin, current_user: AuthUser) -> list[dict[str, 
         if not patient_response.data or not patient_response.data[0].get("caregiver_id"):
             return invitations
         patient_record = patient_response.data[0]
-        caregiver_response = (
-            admin.table("Users")
-            .select("*")
-            .eq("id", patient_record["caregiver_id"])
-            .maybe_single()
-            .execute()
+        caregiver_user = fetch_one_or_none(
+            admin.table("Users").select("*").eq("id", patient_record["caregiver_id"])
         )
-        if not caregiver_response.data:
+        if not caregiver_user:
             return invitations
         return invitations + [
             _legacy_relationship(
                 patient_record,
                 current_user.profile | {"id": legacy_user_id, "username": current_user.profile.get("name")},
-                caregiver_response.data,
+                caregiver_user,
             )
         ]
 
@@ -245,18 +228,14 @@ def _list_legacy_relationships(admin, current_user: AuthUser) -> list[dict[str, 
             .execute()
         )
         for patient_record in patient_response.data or []:
-            patient_user_response = (
-                admin.table("Users")
-                .select("*")
-                .eq("id", patient_record["user_id"])
-                .maybe_single()
-                .execute()
+            patient_user = fetch_one_or_none(
+                admin.table("Users").select("*").eq("id", patient_record["user_id"])
             )
-            if patient_user_response.data:
+            if patient_user:
                 relationships.append(
                     _legacy_relationship(
                         patient_record,
-                        patient_user_response.data,
+                        patient_user,
                         current_user.profile | {"id": legacy_user_id, "username": current_user.profile.get("name")},
                     )
                 )
@@ -267,39 +246,33 @@ def _list_legacy_relationships(admin, current_user: AuthUser) -> list[dict[str, 
 
 def find_caregiver_profile_id(admin, email: str) -> str:
     normalized_email = email.strip().lower()
-    profile_response = (
-        admin.table("profiles")
-        .select("id,email,role")
-        .ilike("email", normalized_email)
-        .maybe_single()
-        .execute()
+    profile = fetch_one_or_none(
+        admin.table("profiles").select("id,email,role").ilike("email", normalized_email)
     )
-    if not profile_response.data:
+    if not profile:
         raise HTTPException(
             status_code=404,
             detail="ไม่พบบัญชีผู้ดูแลจากอีเมลนี้ กรุณาให้ผู้ดูแลสมัครบัญชีบทบาทผู้ดูแลก่อน",
         )
 
-    if profile_response.data.get("role") != Role.CAREGIVER.value:
+    if profile.get("role") != Role.CAREGIVER.value:
         raise HTTPException(
             status_code=409,
             detail="พบอีเมลนี้แล้ว แต่บัญชีนี้ยังไม่ใช่บทบาทผู้ดูแล กรุณาใช้อีเมลของบัญชีผู้ดูแล",
         )
 
-    return profile_response.data["id"]
+    return profile["id"]
 
 
 def get_or_404(admin, relationship_id: str) -> dict:
-    response = (
+    relationship = fetch_one_or_none(
         admin.table("caregiver_relationships")
         .select(RELATIONSHIP_SELECT)
         .eq("id", relationship_id)
-        .maybe_single()
-        .execute()
     )
-    if not response.data:
+    if not relationship:
         raise HTTPException(status_code=404, detail="Relationship not found")
-    return response.data
+    return relationship
 
 
 @router.get("", response_model=list[RelationshipRead])
@@ -429,14 +402,9 @@ def respond_to_invitation(
 ):
     if relationship_id.startswith("legacy-invite-"):
         invitation_id = relationship_id.removeprefix("legacy-invite-")
-        invitation_response = (
-            admin.table("legacy_caregiver_invitations")
-            .select("*")
-            .eq("id", invitation_id)
-            .maybe_single()
-            .execute()
+        invitation = fetch_one_or_none(
+            admin.table("legacy_caregiver_invitations").select("*").eq("id", invitation_id)
         )
-        invitation = invitation_response.data
         if not invitation:
             raise HTTPException(status_code=404, detail="Relationship not found")
         if int(invitation["caregiver_user_id"]) != _legacy_user_id(caregiver):
@@ -459,14 +427,9 @@ def respond_to_invitation(
                     raise HTTPException(status_code=409, detail="ผู้ป่วยมีผู้ดูแลคนอื่นผูกไว้อยู่แล้ว")
                 admin.table("Patients").update({"caregiver_id": invitation["caregiver_user_id"]}).eq("id", patient_record["id"]).execute()
             else:
-                patient_user_response = (
-                    admin.table("Users")
-                    .select("*")
-                    .eq("id", invitation["patient_user_id"])
-                    .maybe_single()
-                    .execute()
+                patient_user = fetch_one_or_none(
+                    admin.table("Users").select("*").eq("id", invitation["patient_user_id"])
                 )
-                patient_user = patient_user_response.data
                 if not patient_user:
                     raise HTTPException(status_code=404, detail="Patient account not found")
                 admin.table("Patients").insert(
@@ -524,14 +487,9 @@ def update_permissions(
 def revoke_relationship(relationship_id: str, admin: AdminClient, current_user: CurrentUser):
     if relationship_id.startswith("legacy-invite-"):
         invitation_id = relationship_id.removeprefix("legacy-invite-")
-        invitation_response = (
-            admin.table("legacy_caregiver_invitations")
-            .select("*")
-            .eq("id", invitation_id)
-            .maybe_single()
-            .execute()
+        invitation = fetch_one_or_none(
+            admin.table("legacy_caregiver_invitations").select("*").eq("id", invitation_id)
         )
-        invitation = invitation_response.data
         if not invitation:
             raise HTTPException(status_code=404, detail="Relationship not found")
         legacy_user_id = _legacy_user_id(current_user)

@@ -5,6 +5,7 @@ import httpx
 from supabase import Client
 
 from app.core.config import settings
+from app.database.supabase import fetch_one_or_none
 
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_API = "https://www.googleapis.com/calendar/v3"
@@ -40,7 +41,7 @@ def exchange_code(code: str) -> dict:
 
 
 def _access_token(admin: Client, user_id: str) -> str:
-    row = admin.table("user_integrations").select("*").eq("user_id", user_id).eq("provider", "google_calendar").maybe_single().execute().data
+    row = fetch_one_or_none(admin.table("user_integrations").select("*").eq("user_id", user_id).eq("provider", "google_calendar"))
     if not row:
         raise RuntimeError("Google Calendar is not connected")
     expires = row.get("token_expires_at")
@@ -74,7 +75,7 @@ def _event_payload(appointment: dict) -> dict:
 def sync_event(admin: Client, user_id: str, appointment: dict) -> str:
     token = _access_token(admin, user_id)
     headers = {"Authorization": f"Bearer {token}"}
-    link = admin.table("calendar_event_links").select("google_event_id").eq("user_id", user_id).eq("appointment_id", str(appointment["id"])).maybe_single().execute().data
+    link = fetch_one_or_none(admin.table("calendar_event_links").select("google_event_id").eq("user_id", user_id).eq("appointment_id", str(appointment["id"])))
     event_id = (link or {}).get("google_event_id") or appointment.get("google_event_id")
     if event_id:
         response = httpx.put(f"{GOOGLE_API}/calendars/primary/events/{event_id}", headers=headers, json=_event_payload(appointment), timeout=20)
@@ -87,7 +88,7 @@ def sync_event(admin: Client, user_id: str, appointment: dict) -> str:
 
 
 def linked_event_id(admin: Client, user_id: str, appointment_id: str) -> str | None:
-    row = admin.table("calendar_event_links").select("google_event_id").eq("user_id", user_id).eq("appointment_id", str(appointment_id)).maybe_single().execute().data
+    row = fetch_one_or_none(admin.table("calendar_event_links").select("google_event_id").eq("user_id", user_id).eq("appointment_id", str(appointment_id)))
     return row.get("google_event_id") if row else None
 
 

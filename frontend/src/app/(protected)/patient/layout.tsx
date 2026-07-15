@@ -6,8 +6,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
 import { TablerIcon, type IconName } from "@/components/ui/tabler-icons";
+import { logout } from "@/features/auth/api";
 import { useAuthGuard, useAuthUser } from "@/features/auth/hooks";
-import { clearSession } from "@/lib/auth/session";
 
 const navItems: { href: string; label: string; icon: IconName }[] = [
   { href: "/patient/dashboard", label: "แดชบอร์ด", icon: "home" },
@@ -51,9 +51,13 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
     if (profileMenuRef.current) profileMenuRef.current.open = false;
     setShowSwitchModal(true);
   };
-  const confirmSwitchRole = () => {
+  const confirmSwitchRole = async () => {
     setShowSwitchModal(false);
-    clearSession();
+    await logout();
+    router.replace("/login");
+  };
+  const handleLogout = async () => {
+    await logout();
     router.replace("/login");
   };
 
@@ -110,10 +114,10 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                 <TablerIcon name="users" className="h-5 w-5" />
                 สลับเป็นโหมดผู้ดูแล
               </button>
-              <Link href="/login" className="flex min-h-12 items-center gap-3 border-t border-blue-100 px-4 pt-1 font-semibold text-red-600 transition hover:bg-red-50">
+              <button type="button" onClick={handleLogout} className="flex min-h-12 w-full items-center gap-3 border-t border-blue-100 px-4 pt-1 text-left font-semibold text-red-600 transition hover:bg-red-50">
                 <TablerIcon name="logout" className="h-5 w-5" />
                 ออกจากระบบ
-              </Link>
+              </button>
             </nav>
           </div>
         ) : null}
@@ -174,10 +178,10 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                   <TablerIcon name="users" className="h-5 w-5" />
                   โหมดผู้ดูแล
                 </button>
-                <Link href="/login" className="flex min-h-12 items-center gap-3 border-t border-border px-5 font-semibold text-slate-700 transition hover:bg-blue-100">
+                <button type="button" onClick={handleLogout} className="flex min-h-12 w-full items-center gap-3 border-t border-border px-5 text-left font-semibold text-slate-700 transition hover:bg-blue-100">
                   <TablerIcon name="logout" className="h-5 w-5" />
                   ออกจากระบบ
-                </Link>
+                </button>
               </div>
             </details>
           </div>
