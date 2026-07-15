@@ -9,3 +9,9 @@ docs
 evaluation
 test_api.py
 data/test_images
+runtime
+Ultralytics
+.ultralytics
+.paddlex
+.mplconfig
+*.log
