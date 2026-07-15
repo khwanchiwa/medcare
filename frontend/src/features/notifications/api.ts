@@ -13,6 +13,23 @@ export type NotificationRecord = {
   created_at: string;
 };
 
+export type NotificationPreferences = {
+  medication_lead_minutes: number;
+  appointment_lead_minutes: number[];
+  line_enabled: boolean;
+};
+
+export type NotificationDelivery = {
+  id: string;
+  notification_type: "medication" | "appointment";
+  reference_id: string;
+  scheduled_at: string;
+  sent_at: string | null;
+  status: "processing" | "sent" | "failed" | "skipped";
+  error_message: string | null;
+  created_at: string;
+};
+
 export const notificationChannelLabels: Record<NotificationRecord["channel"], string> = {
   in_app: "In-app",
   line: "LINE",
@@ -45,3 +62,14 @@ export function listNotifications(): Promise<NotificationRecord[]> {
     cacheTtlMs: 15_000,
   });
 }
+
+export const getNotificationPreferences = (): Promise<NotificationPreferences> =>
+  apiRequest<NotificationPreferences>("/notifications/preferences", { headers: authHeaders() });
+
+export const saveNotificationPreferences = (payload: NotificationPreferences): Promise<NotificationPreferences> =>
+  apiRequest<NotificationPreferences>("/notifications/preferences", {
+    method: "PUT", headers: authHeaders(), body: JSON.stringify(payload),
+  });
+
+export const listDeliveryHistory = (): Promise<NotificationDelivery[]> =>
+  apiRequest<NotificationDelivery[]>("/notifications/delivery-history", { headers: authHeaders() });

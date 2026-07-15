@@ -4,6 +4,10 @@ import { clearSession, getAccessToken, getRefreshToken, saveSession } from "@/li
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL ?? "/api/backend";
 
+// Keep navigation and window-focus refreshes fast while still allowing every
+// mutation to invalidate the affected data immediately.
+export const DEFAULT_DATA_CACHE_TTL_MS = 30_000;
+
 type ApiRequestInit = RequestInit & {
   cacheTtlMs?: number;
 };

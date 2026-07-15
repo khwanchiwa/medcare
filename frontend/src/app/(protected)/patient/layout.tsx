@@ -101,7 +101,7 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
               </Link>
               <Link href="/patient/integrations" className="flex min-h-12 items-center gap-3 rounded-xl px-4 font-semibold text-slate-600 transition hover:bg-blue-50">
                 <TablerIcon name="link" className="h-5 w-5" />
-                การเชื่อมต่อ
+                เชื่อมต่อปฏิทิน
               </Link>
               <button
                 type="button"
@@ -165,6 +165,10 @@ export default function PatientLayout({ children }: { children: React.ReactNode 
                 <Link href="/patient/caregivers" className="flex min-h-12 items-center gap-3 px-5 font-semibold text-slate-700 transition hover:bg-blue-100">
                   <TablerIcon name="users" className="h-5 w-5" />
                   ผู้ดูแล
+                </Link>
+                <Link href="/patient/integrations" className="flex min-h-12 items-center gap-3 px-5 font-semibold text-slate-700 transition hover:bg-blue-100">
+                  <TablerIcon name="link" className="h-5 w-5" />
+                  เชื่อมต่อปฏิทิน
                 </Link>
                 <div className="border-t border-border px-5 py-3 text-xs font-semibold text-slate-400">สลับบทบาท</div>
                 <Link href="/patient/dashboard" className="flex min-h-12 items-center justify-between gap-3 bg-blue-100 px-5 font-semibold text-blue-600">

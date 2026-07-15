@@ -13,6 +13,7 @@ def production_settings(**overrides):
         "google_redirect_uri": "https://api.example.com/api/v1/integrations/google/callback",
         "google_client_id": "client-id",
         "google_client_secret": "client-secret",
+        "google_token_encryption_key": "ZHVtbXktdGVzdC1rZXktMDAwMDAwMDAwMDAwMDAwMDAwMDA=",
         "supabase_url": "https://example.supabase.co",
         "supabase_publishable_key": "publishable-key",
         "supabase_secret_key": "secret-key",
@@ -34,6 +35,7 @@ def test_production_settings_accept_secure_urls():
         ({"debug": True}, "DEBUG must be false"),
         ({"frontend_url": "http://localhost:3000"}, "must use HTTPS"),
         ({"google_client_secret": ""}, "GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET"),
+        ({"google_token_encryption_key": ""}, "GOOGLE_TOKEN_ENCRYPTION_KEY"),
         ({"supabase_auto_confirm_email": True}, "SUPABASE_AUTO_CONFIRM_EMAIL must be false"),
     ],
 )
