@@ -107,9 +107,11 @@ pytest
 
 ## Google Calendar
 
-1. รัน migration `supabase/migrations/202607150001_notification_integrations.sql`
-2. ตั้งค่า `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` และ `GOOGLE_REDIRECT_URI` ใน `.env`
+1. รัน migrations `supabase/migrations/202607150001_notification_integrations.sql` และ `202607150003_google_calendar_sync.sql`
+2. ตั้งค่า `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI` และ `GOOGLE_TOKEN_ENCRYPTION_KEY` ใน `.env`
 3. Google OAuth redirect URI ต้องตรงกับ `GOOGLE_REDIRECT_URI`
+
+สร้าง encryption key หนึ่งครั้งด้วย `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"` และเก็บเป็น server secret เท่านั้น ห้ามเปลี่ยน key ขณะที่ยังมี token เดิมในฐานข้อมูล
 
 ระบบสร้าง แก้ไข และลบ Google Calendar Event เมื่อนัดหมายใน MedCare เปลี่ยน
 

@@ -1,4 +1,8 @@
-import { apiRequest, clearApiCache } from "@/lib/api-client";
+import {
+  apiRequest,
+  clearApiCache,
+  DEFAULT_DATA_CACHE_TTL_MS,
+} from "@/lib/api-client";
 import { getAccessToken } from "@/lib/auth/session";
 
 export type MedicationRecord = {
@@ -59,7 +63,7 @@ export function listMedicationLogs(patientId?: string): Promise<MedicationLogRec
   const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
   return apiRequest<MedicationLogRecord[]>(`/medications/logs${query}`, {
     headers: authHeaders(),
-    cacheTtlMs: 0,
+    cacheTtlMs: DEFAULT_DATA_CACHE_TTL_MS,
   });
 }
 
@@ -67,7 +71,7 @@ export function listMedicationsForPatient(patientId?: string): Promise<Medicatio
   const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
   return apiRequest<MedicationRecord[]>(`/medications${query}`, {
     headers: authHeaders(),
-    cacheTtlMs: 0,
+    cacheTtlMs: DEFAULT_DATA_CACHE_TTL_MS,
   });
 }
 
@@ -123,7 +127,7 @@ export function listAppointmentsForPatient(patientId?: string): Promise<Appointm
   const query = patientId ? `?patient_id=${encodeURIComponent(patientId)}` : "";
   return apiRequest<AppointmentRecord[]>(`/appointments${query}`, {
     headers: authHeaders(),
-    cacheTtlMs: 0,
+    cacheTtlMs: DEFAULT_DATA_CACHE_TTL_MS,
   });
 }
 

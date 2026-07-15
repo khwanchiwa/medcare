@@ -1,3 +1,4 @@
+from collections import defaultdict
 from datetime import date
 
 from fastapi import APIRouter, Depends
@@ -96,14 +97,21 @@ def caregiver_dashboard(
             )
 
         users_by_id = {item["id"]: item for item in patient_users}
+        medications_by_user = defaultdict(list)
+        appointments_by_user = defaultdict(list)
+        for medication in medications:
+            medications_by_user[medication["user_id"]].append(medication)
+        for appointment in appointments:
+            appointments_by_user[appointment["user_id"]].append(appointment)
+
         summaries = []
         for patient_record in patient_records:
             user_id = patient_record.get("user_id")
             user = users_by_id.get(user_id)
             if not user:
                 continue
-            patient_appointments = [item for item in appointments if item["user_id"] == user_id]
-            patient_medications = [item for item in medications if item["user_id"] == user_id]
+            patient_appointments = appointments_by_user[user_id]
+            patient_medications = medications_by_user[user_id]
             next_appointment = patient_appointments[0] if patient_appointments else None
             next_appointment_title = (
                 parse_legacy_appointment_instruction(next_appointment.get("app_instr"))[0]
@@ -188,10 +196,26 @@ def caregiver_dashboard(
             or []
         )
 
+    active_medications_by_patient = defaultdict(int)
+    taken_medications_by_patient = defaultdict(int)
+    missed_by_patient = defaultdict(int)
+    appointments_by_patient = defaultdict(list)
+    for medication in medications:
+        target = (
+            active_medications_by_patient
+            if medication.get("is_active", True)
+            else taken_medications_by_patient
+        )
+        target[medication["patient_id"]] += 1
+    for item in missed:
+        missed_by_patient[item["patient_id"]] += 1
+    for appointment in appointments:
+        appointments_by_patient[appointment["patient_id"]].append(appointment)
+
     summaries = []
     for patient in patients:
         patient_id = patient["id"]
-        patient_appointments = [item for item in appointments if item["patient_id"] == patient_id]
+        patient_appointments = appointments_by_patient[patient_id]
         next_appointment = patient_appointments[0] if patient_appointments else None
         summaries.append(
             {
@@ -199,9 +223,9 @@ def caregiver_dashboard(
                 "name": patient["name"],
                 "email": patient["email"],
                 "condition": patient.get("medical_conditions") or "ยังไม่ได้บันทึกโรคประจำตัว",
-                "active_medications": len([item for item in medications if item["patient_id"] == patient_id and item.get("is_active", True)]),
-                "taken_medications": len([item for item in medications if item["patient_id"] == patient_id and not item.get("is_active", True)]),
-                "missed_dose_alerts": len([item for item in missed if item["patient_id"] == patient_id]),
+                "active_medications": active_medications_by_patient[patient_id],
+                "taken_medications": taken_medications_by_patient[patient_id],
+                "missed_dose_alerts": missed_by_patient[patient_id],
                 "upcoming_appointments": len(patient_appointments),
                 "next_appointment": next_appointment,
             }

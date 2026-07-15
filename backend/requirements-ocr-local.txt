@@ -1,0 +1,7 @@
+-r ../../PJ_OCR69/requirements.txt
+
+# Use the tested CPU build. Newer preview builds can contain unsigned Windows
+# DLLs that are rejected by Windows Application Control.
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.7.0+cpu
+torchvision==0.22.0+cpu

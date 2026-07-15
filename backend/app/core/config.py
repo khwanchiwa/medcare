@@ -20,8 +20,14 @@ class Settings(BaseSettings):
     ocr_timeout_seconds: float = 120.0
     google_client_id: str = ""
     google_client_secret: str = ""
+    google_token_encryption_key: str = ""
     google_redirect_uri: str = "http://localhost:8000/api/v1/integrations/google/callback"
     frontend_url: str = "http://localhost:3000"
+    line_login_channel_id: str = ""
+    line_login_channel_secret: str = ""
+    line_messaging_access_token: str = ""
+    line_redirect_uri: str = "http://localhost:8000/api/v1/integrations/line/callback"
+    scheduler_secret: str = ""
 
     @model_validator(mode="after")
     def validate_supabase_settings(self):
@@ -37,12 +43,20 @@ class Settings(BaseSettings):
             if not self.frontend_origins:
                 raise ValueError("FRONTEND_ORIGINS must contain the production frontend URL")
             public_urls = [*self.frontend_origins, self.frontend_url, self.google_redirect_uri]
+            line_values = (self.line_login_channel_id, self.line_login_channel_secret,
+                           self.line_messaging_access_token)
+            if any(line_values):
+                if not all(line_values) or not self.scheduler_secret:
+                    raise ValueError("All LINE credentials and SCHEDULER_SECRET are required when LINE is enabled")
+                public_urls.append(self.line_redirect_uri)
             for value in public_urls:
                 parsed = urlparse(value)
                 if parsed.scheme != "https" or parsed.hostname in {"localhost", "127.0.0.1"}:
                     raise ValueError(f"Production public URL must use HTTPS and cannot be localhost: {value}")
             if not self.google_client_id or not self.google_client_secret:
                 raise ValueError("GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET are required in production")
+            if not self.google_token_encryption_key:
+                raise ValueError("GOOGLE_TOKEN_ENCRYPTION_KEY is required in production")
         return self
 
     model_config = SettingsConfigDict(

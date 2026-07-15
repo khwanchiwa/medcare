@@ -1,4 +1,4 @@
-import { apiRequest } from "@/lib/api-client";
+import { apiRequest, DEFAULT_DATA_CACHE_TTL_MS } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/auth/session";
 
 export type CaregiverPatientSummary = {
@@ -36,7 +36,7 @@ function authHeaders(): HeadersInit {
 export function getCaregiverDashboard(): Promise<CaregiverDashboard> {
   return apiRequest<CaregiverDashboard>("/dashboard/caregiver", {
     headers: authHeaders(),
-    cacheTtlMs: 0,
+    cacheTtlMs: DEFAULT_DATA_CACHE_TTL_MS,
   });
 }
 
