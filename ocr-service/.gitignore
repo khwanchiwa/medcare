@@ -1,0 +1,65 @@
+# ======================
+# Python
+# ======================
+__pycache__/
+*.pyc
+*.py[cod]
+*.so
+
+# ======================
+# Virtual Environment
+# ======================
+.venv/
+venv/
+
+# ======================
+# macOS
+# ======================
+.DS_Store
+
+# ======================
+# PaddleX Cache
+# ======================
+.paddlex/
+
+# ======================
+# Matplotlib
+# ======================
+.mplconfig/
+
+# ======================
+# Runtime / Debug / Output Files
+# ======================
+debug/
+outputs/
+runtime/
+
+# ======================
+# Ultralytics / YOLO runtime cache
+# ======================
+Ultralytics/
+.ultralytics/
+
+# ======================
+# VS Code
+# ======================
+.vscode/
+
+# ======================
+# Logs
+# ======================
+*.log
+
+# ======================
+# Evaluation Outputs
+# ======================
+evaluation/*/predictions/
+evaluation/*/reports/
+evaluation/visual_dashboard/
+evaluation/visual_report/
+evaluation/summary_report.json
+evaluation/evaluation_report.json
+evaluation/dataset_validation_report.json
+evaluation/report.json
+
+

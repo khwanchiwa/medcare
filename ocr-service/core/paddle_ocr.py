@@ -1,0 +1,277 @@
+from __future__ import annotations
+
+import logging
+import os
+import time
+from pathlib import Path
+from typing import Any
+
+import yaml
+
+import cv2
+import numpy as np
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+os.environ.setdefault("PADDLE_PDX_CACHE_HOME", str(PROJECT_ROOT / ".paddlex"))
+os.environ.setdefault("MPLCONFIGDIR", str(PROJECT_ROOT / ".mplconfig"))
+
+from paddleocr import TextRecognition
+
+LOGGER = logging.getLogger("pj_ocr69.paddle_ocr")
+
+
+def expand_box(
+    box: list[int] | tuple[int, int, int, int],
+    image_width: int,
+    image_height: int,
+    padding: int = 12,
+) -> tuple[int, int, int, int]:
+    x1, y1, x2, y2 = [int(round(value)) for value in box]
+    left = max(0, min(x1, x2) - padding)
+    top = max(0, min(y1, y2) - padding)
+    right = min(image_width, max(x1, x2) + padding)
+    bottom = min(image_height, max(y1, y2) + padding)
+
+    if right <= left:
+        right = min(image_width, left + 1)
+    if bottom <= top:
+        bottom = min(image_height, top + 1)
+
+    return left, top, right, bottom
+
+
+class PaddleOCRReader:
+    def __init__(
+        self,
+        model_dir: Path | None = None,
+        model_name: str = "PP-OCRv5_server_rec",
+        padding: int = 12,
+    ) -> None:
+        self.project_root = PROJECT_ROOT
+        configured_dir = os.getenv("PADDLE_MODEL_DIR")
+        self.model_dir = model_dir or (
+            Path(configured_dir).expanduser()
+            if configured_dir
+            else self.project_root / "models" / "paddle" / "th_PP-OCRv5_mobile_rec"
+        )
+        self.model_name = os.getenv("PADDLE_MODEL_NAME", model_name)
+        self.padding = padding
+        self.last_errors: list[str] = []
+
+        if not self.model_dir.exists():
+            raise FileNotFoundError(
+                f"ไม่พบโมเดล PaddleOCR ที่ {self.model_dir}. กรุณาตรวจสอบไฟล์ models/paddle/th_PP-OCRv5_mobile_rec/"
+            )
+
+        required_files = ("inference.json", "inference.pdiparams", "inference.yml")
+        missing_files = [name for name in required_files if not (self.model_dir / name).is_file()]
+        if missing_files:
+            raise FileNotFoundError(
+                f"ไฟล์โมเดล PaddleOCR ไม่ครบที่ {self.model_dir}: {', '.join(missing_files)}"
+            )
+
+        config = yaml.safe_load((self.model_dir / "inference.yml").read_text(encoding="utf-8")) or {}
+        configured_model_name = (config.get("Global") or {}).get("model_name")
+        if configured_model_name and configured_model_name != self.model_name:
+            raise ValueError(
+                "ชื่อโมเดล PaddleOCR ไม่ตรงกัน: "
+                f"requested={self.model_name}, weight={configured_model_name}"
+            )
+
+        LOGGER.info("Initializing PaddleOCR TextRecognition model: %s", self.model_name)
+        try:
+            self.reader = TextRecognition(
+                model_name=self.model_name,
+                model_dir=str(self.model_dir),
+                device=os.getenv("PADDLE_DEVICE", "cpu"),
+                precision="fp32",
+                enable_mkldnn=False,
+                enable_cinn=False,
+                enable_hpi=False,
+                cpu_threads=int(os.getenv("PADDLE_CPU_THREADS", "2")),
+            )
+        except Exception as exc:
+            raise RuntimeError(f"ไม่สามารถโหลดโมเดล PaddleOCR: {self.model_dir}") from exc
+
+    def readiness(self) -> dict[str, Any]:
+        return {
+            "ready": self.reader is not None,
+            "model_path": str(self.model_dir),
+            "model_name": self.model_name,
+            "model_type": "text_recognition",
+        }
+
+    def read_regions(
+        self,
+        image_path: str | Path,
+        boxes: list[dict[str, Any]],
+    ) -> list[dict[str, Any]]:
+        image_path = Path(image_path)
+        if not image_path.exists():
+            raise FileNotFoundError(f"ไม่พบไฟล์รูปภาพ: {image_path}")
+
+        image = cv2.imread(str(image_path))
+        if image is None:
+            raise ValueError(f"ไม่สามารถอ่านไฟล์รูปภาพด้วย OpenCV: {image_path}")
+
+        image_height, image_width = image.shape[:2]
+        regions: list[dict[str, Any]] = []
+        self.last_errors = []
+
+        num_regions = len(boxes) if boxes is not None else 0
+        LOGGER.info("OCR read_regions called with %s regions", num_regions)
+
+        if num_regions == 0:
+            return regions
+
+        start_time = time.perf_counter()
+
+        for box in boxes:
+            bbox = box.get("bbox", [0, 0, 0, 0])
+            expanded_bbox = expand_box(
+                bbox,
+                image_width=image_width,
+                image_height=image_height,
+                padding=self.padding,
+            )
+            x1, y1, x2, y2 = expanded_bbox
+            roi = image[y1:y2, x1:x2]
+
+            if roi.size == 0:
+                self.last_errors.append("empty_roi")
+                regions.append(
+                    {
+                        "box_id": box.get("box_id"),
+                        "bbox": [int(value) for value in box.get("bbox", [0, 0, 0, 0])],
+                        "ocr_text": "",
+                        "ocr_confidence": 0.0,
+                        "yolo_confidence": round(float(box.get("confidence", 0.0)), 4),
+                    }
+                )
+                continue
+
+            ocr_text, ocr_confidence, ocr_error = self._recognize_roi(roi)
+            if ocr_error:
+                self.last_errors.append(ocr_error)
+            regions.append(
+                {
+                    "box_id": box.get("box_id"),
+                    "bbox": [int(value) for value in box.get("bbox", [0, 0, 0, 0])],
+                    "ocr_text": ocr_text,
+                    "ocr_confidence": round(float(ocr_confidence), 4),
+                    "yolo_confidence": round(float(box.get("confidence", 0.0)), 4),
+                }
+            )
+
+        elapsed = time.perf_counter() - start_time
+        LOGGER.info("OCR processed %s regions in %.2f seconds", num_regions, elapsed)
+        return regions
+
+    def _recognize_roi(self, roi: np.ndarray) -> tuple[str, float, str | None]:
+        if roi is None or roi.size == 0:
+            return "", 0.0, None
+
+        try:
+            start_time = time.perf_counter()
+            results = self.reader.predict(roi)
+            elapsed = time.perf_counter() - start_time
+            LOGGER.debug("OCR ROI prediction completed in %.3f seconds", elapsed)
+        except Exception as exc:
+            return "", 0.0, f"{type(exc).__name__}: {exc}"
+
+        text, confidence = self._extract_text_and_confidence(results)
+        return text, confidence, None
+
+    def _extract_text_and_confidence(self, result: Any) -> tuple[str, float]:
+        if result is None:
+            return "", 0.0
+
+        normalized = self._normalize_result(result)
+
+        if isinstance(normalized, list):
+            texts: list[str] = []
+            confidences: list[float] = []
+            for item in normalized:
+                item_text, item_confidence = self._extract_text_and_confidence(item)
+                if item_text:
+                    texts.append(item_text)
+                if item_confidence > 0:
+                    confidences.append(item_confidence)
+            if not texts:
+                return "", max(confidences) if confidences else 0.0
+            joined_text = "\n".join(texts).strip()
+            avg_confidence = sum(confidences) / len(confidences) if confidences else 0.0
+            return joined_text, avg_confidence
+
+        if isinstance(normalized, dict):
+            text = self._find_first_value(
+                normalized,
+                ("rec_text", "text", "ocr_text", "transcription", "label", "result"),
+            )
+            confidence = self._find_first_value(
+                normalized,
+                ("rec_score", "score", "confidence", "probability", "prob"),
+            )
+            if text is None:
+                return "", float(confidence) if confidence is not None else 0.0
+            return str(text).strip(), float(confidence) if confidence is not None else 0.0
+
+        if hasattr(normalized, "text") or hasattr(normalized, "rec_text"):
+            text = getattr(normalized, "rec_text", None) or getattr(normalized, "text", "")
+            confidence = (
+                getattr(normalized, "rec_score", None)
+                if getattr(normalized, "rec_score", None) is not None
+                else getattr(normalized, "score", None)
+            )
+            return str(text).strip(), float(confidence) if confidence is not None else 0.0
+
+        if isinstance(normalized, str):
+            return normalized.strip(), 0.0
+
+        return "", 0.0
+
+    def _normalize_result(self, result: Any) -> Any:
+        if hasattr(result, "to_dict"):
+            try:
+                return result.to_dict()
+            except Exception:
+                pass
+
+        if isinstance(result, tuple):
+            result = list(result)
+
+        if isinstance(result, list) and len(result) == 1:
+            return self._normalize_result(result[0])
+
+        if isinstance(result, list):
+            return [self._normalize_result(item) for item in result]
+
+        if hasattr(result, "__dict__") and not isinstance(result, (str, bytes)):
+            try:
+                data = {
+                    key: value
+                    for key, value in vars(result).items()
+                    if not key.startswith("_")
+                }
+                if data:
+                    return data
+            except Exception:
+                pass
+
+        return result
+
+    def _find_first_value(self, data: Any, keys: tuple[str, ...]) -> Any:
+        if isinstance(data, dict):
+            for key in keys:
+                if key in data and data[key] not in (None, ""):
+                    return data[key]
+            for value in data.values():
+                found = self._find_first_value(value, keys)
+                if found not in (None, ""):
+                    return found
+        elif isinstance(data, list):
+            for item in data:
+                found = self._find_first_value(item, keys)
+                if found not in (None, ""):
+                    return found
+        return None

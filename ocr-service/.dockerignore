@@ -1,0 +1,17 @@
+.git
+.gitignore
+__pycache__
+*.pyc
+.pytest_cache
+.venv
+.env
+docs
+evaluation
+test_api.py
+data/test_images
+runtime
+Ultralytics
+.ultralytics
+.paddlex
+.mplconfig
+*.log
