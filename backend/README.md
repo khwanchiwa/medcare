@@ -115,23 +115,24 @@ pytest
 
 ระบบสร้าง แก้ไข และลบ Google Calendar Event เมื่อนัดหมายใน MedCare เปลี่ยน
 
-## เชื่อม PJ_OCR69
+## เชื่อม OCR service (`ocr-service`)
 
-MedCare เรียกโมเดล OCR ผ่าน `PJ_OCR69` FastAPI ที่พอร์ต `8001` แล้วส่งภาพผ่าน
+MedCare เรียกโมเดล OCR ผ่าน FastAPI ใน `ocr-service` ที่พอร์ต `8001` แล้วส่งภาพผ่าน
 Backend endpoint `/api/v1/ocr/medicine` เพื่อเก็บ access token และการตรวจไฟล์ไว้ฝั่งเซิร์ฟเวอร์
 
-โครงสร้างโฟลเดอร์ที่ใช้:
+`ocr-service` อยู่ภายใน repo medcare เดียวกัน:
 
 ```text
-D:\CS\Project\
-├── medcare\
-└── PJ_OCR69\
+medcare\
+├── backend\
+├── frontend\
+└── ocr-service\
 ```
 
 เปิด OCR API ใน Terminal แยกจาก MedCare Backend:
 
 ```powershell
-cd D:\CS\Project\medcare
+cd <path-to>\medcare
 .\backend\start-ocr.ps1
 ```
 

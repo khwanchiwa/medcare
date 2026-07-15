@@ -1,0 +1,67 @@
+# Runs the MedCare backend (FastAPI) together with the OCR service
+# (YOLO + PaddleOCR) on one internal network.
+#
+# The frontend is deployed separately on Vercel and points
+# NEXT_PUBLIC_API_BASE_URL at this backend's public URL.
+#
+#   docker compose up --build      # first build installs torch/paddle — slow & large
+#   docker compose up -d           # start in the background
+#   docker compose down            # stop
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: medcare-backend:latest
+    container_name: medcare-backend
+    restart: on-failure
+    # Supabase keys, Google creds, CORS origins, etc.
+    # For a real deploy copy backend/.env.production.example -> backend/.env
+    # and fill in production values (FRONTEND_ORIGINS with your Vercel domain,
+    # DEBUG=false, real Supabase keys, ...).
+    env_file:
+      - ./backend/.env
+    environment:
+      # Reach the OCR container over the internal compose network, not localhost.
+      # This overrides whatever OCR_API_URL is set in backend/.env.
+      OCR_API_URL: "http://ocr:8001"
+    ports:
+      - "8000:8000"   # public API — put behind an HTTPS reverse proxy in production
+    depends_on:
+      ocr:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  ocr:
+    build:
+      context: ./ocr-service
+      dockerfile: Dockerfile
+    image: medcare-ocr:latest
+    container_name: medcare-ocr
+    restart: on-failure
+    # The image CMD listens on 7860 (for Hugging Face Spaces); override to 8001
+    # here so it matches OCR_API_URL=http://ocr:8001.
+    command: ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8001"]
+    environment:
+      PYTHONUNBUFFERED: "1"
+      # Optional shared secret. NOTE: the backend does not yet forward the
+      # X-OCR-API-Key header, so enabling this would reject backend requests.
+      # Leave it unset until the backend is updated to send the key. The OCR
+      # container is already unreachable from outside this network below.
+      # OCR_API_KEY: "change-me-min-32-chars"
+    expose:
+      - "8001"          # internal only — deliberately NOT published to the host
+    # For local debugging, expose it to localhost by uncommenting:
+    # ports:
+    #   - "127.0.0.1:8001:8001"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/health/ready', timeout=5)"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 180s   # first boot loads the ML models into memory

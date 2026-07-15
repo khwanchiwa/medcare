@@ -1,0 +1,84 @@
+---
+title: MedCare OCR API
+emoji: 💊
+colorFrom: blue
+colorTo: green
+sdk: docker
+app_port: 7860
+---
+
+## Evaluation
+
+Sprint 6 เพิ่มระบบประเมินผล 2 ส่วน:
+
+1. `OCR Recognition CER` ใช้ Levenshtein distance
+2. `Information Extraction Field Accuracy` เปรียบเทียบ `final_data` ของ ground truth กับ prediction
+
+### เตรียม Ground Truth
+
+สร้างไฟล์ `evaluation/sample_ground_truth.json` ตามโครงสร้างนี้:
+
+```json
+{
+  "samples": [
+    {
+      "image_path": "data/test_images/A1.jpg",
+      "document_type": "Appointment",
+      "reference_text": "ข้อความจริงทั้งหมดที่ควรอ่านได้จากเอกสาร",
+      "ground_truth_final_data": {
+        "appointment_date": "7 สิงหาคม 2569",
+        "appointment_time": "08:30 น",
+        "preparation_instruction": "งดอาหารและงดน้ำ หลังเวลา 24.00 น. (หลังเที่ยงคืน)"
+      }
+    }
+  ]
+}
+```
+
+### วิธีรัน
+
+```bash
+python evaluation/evaluate.py
+```
+
+ระบบจะอ่าน `evaluation/sample_ground_truth.json`, รัน pipeline กับแต่ละภาพ และบันทึกรายงานลง `evaluation/evaluation_report.json`
+
+### CER
+
+CER หรือ Character Error Rate คำนวณจาก Levenshtein distance ระหว่าง `reference_text` กับ OCR text ที่ทำนายได้
+
+- normalize ด้วย `strip`
+- รวม whitespace หลายตัวให้เป็นช่องว่างเดียว
+- สูตรคือ `edit_distance / len(reference_text)`
+- ถ้า reference ว่างและ predicted ว่าง ให้ได้ `0.0`
+- ถ้า reference ว่างแต่ predicted ไม่ว่าง ให้ได้ `1.0`
+
+### Field Accuracy
+
+Field Accuracy เปรียบเทียบ `ground_truth_final_data` กับ `predicted final_data`
+
+- เทียบเฉพาะ field ที่มีใน ground truth
+- normalize ด้วย `strip`
+- รวม whitespace หลายตัวให้เป็นช่องว่างเดียว
+- รายงานผลราย field และค่า accuracy รวม
+
+### หมายเหตุ
+
+- ใช้ `ensure_ascii=False`
+- รองรับภาษาไทย
+- ไม่แก้ pipeline หลัก
+- ผลลัพธ์ถูกบันทึกเป็น JSON
+
+## Deploy to Hugging Face Spaces
+
+This repository is configured as a Docker Space on port `7860`.
+
+1. Create a Hugging Face Space with the Docker SDK and CPU Basic hardware.
+2. Push this repository to the Space repository.
+3. Add `OCR_API_KEY` under Settings > Variables and secrets > Secrets. Use a random
+   value of at least 32 characters.
+4. Set the same value as `OCR_API_KEY` in the MedCare backend, and set
+   `OCR_API_URL=https://YOUR-SPACE.hf.space`.
+
+Public health checks are available at `/health` and `/health/ready`. Requests to
+`POST /ocr/process` must include `X-OCR-API-Key` when `OCR_API_KEY` is configured.
