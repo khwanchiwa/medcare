@@ -1,4 +1,5 @@
 .ocr-venv/
+.claude/
 backend/.env
 backend/.venv/
 backend/.qa-venv/
