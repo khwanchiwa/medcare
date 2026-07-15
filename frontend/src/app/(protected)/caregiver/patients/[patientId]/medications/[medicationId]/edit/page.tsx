@@ -7,13 +7,12 @@ import { Button } from "@/components/ui/button";
 import { Card, PageTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TablerIcon } from "@/components/ui/tabler-icons";
-import { listMedicationsForPatient } from "@/features/health/api";
-import type { Medication } from "@/mocks/mock-medications";
+import { listMedicationsForPatient, type MedicationRecord } from "@/features/health/api";
 
 export default function EditCaregiverPatientMedicationPage({ params }: { params: Promise<{ patientId: string; medicationId: string }> }) {
   const { patientId, medicationId } = use(params);
   const returnTo = `/caregiver/patients/${patientId}/medications`;
-  const [medication, setMedication] = useState<Medication | null>(null);
+  const [medication, setMedication] = useState<MedicationRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -25,17 +24,7 @@ export default function EditCaregiverPatientMedicationPage({ params }: { params:
           setError("ไม่พบรายการยาที่ต้องการแก้ไข");
           return;
         }
-        setMedication({
-          id: item.id,
-          patientId: item.patient_id,
-          name: item.name,
-          dosage: item.dosage,
-          frequency: item.frequency,
-          times: item.reminder_times,
-          instructions: item.instructions ?? "",
-          status: "pending",
-          nextDose: item.reminder_times[0] ?? "ยังไม่ระบุ",
-        });
+        setMedication(item);
       })
       .catch(() => setError("ไม่สามารถโหลดข้อมูลยาได้"))
       .finally(() => setIsLoading(false));

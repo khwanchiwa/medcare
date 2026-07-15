@@ -10,13 +10,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TablerIcon } from "@/components/ui/tabler-icons";
 import { getCaregiverPatient, type CaregiverPatientSummary } from "@/features/caregiver-dashboard/api";
 import { deleteAppointment, listAppointmentsForPatient, type AppointmentRecord } from "@/features/health/api";
-import type { Appointment } from "@/mocks/mock-appointments";
 
 export default function CaregiverPatientAppointmentsPage({ params }: { params: Promise<{ patientId: string }> }) {
   const [patient, setPatient] = useState<CaregiverPatientSummary | null>(null);
-  const [appointments, setAppointments] = useState<AppointmentCardData[]>([]);
+  const [appointmentRecords, setAppointmentRecords] = useState<AppointmentRecord[]>([]);
   const [patientId, setPatientId] = useState("");
-  const [editingAppointment, setEditingAppointment] = useState<Appointment | null>(null);
+  const [editingAppointment, setEditingAppointment] = useState<AppointmentRecord | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
@@ -34,26 +33,13 @@ export default function CaregiverPatientAppointmentsPage({ params }: { params: P
     };
   }
 
-  function toFormAppointment(item: AppointmentCardData): Appointment {
-    return {
-      id: item.id,
-      patientId: item.patientId,
-      title: item.title,
-      date: item.date,
-      time: item.time,
-      notes: item.notes,
-      status: item.status,
-      googleSync: item.googleSync ?? "pending",
-    };
-  }
-
   const loadData = useCallback(async (id: string) => {
-    const [patientRecord, appointmentRecords] = await Promise.all([
+    const [patientRecord, records] = await Promise.all([
       getCaregiverPatient(id),
       listAppointmentsForPatient(id),
     ]);
     setPatient(patientRecord);
-    setAppointments(appointmentRecords.map(toCard));
+    setAppointmentRecords(records);
   }, []);
 
   useEffect(() => {
@@ -95,17 +81,17 @@ export default function CaregiverPatientAppointmentsPage({ params }: { params: P
         </div>
       ) : null}
 
-      {appointments.length ? (
+      {appointmentRecords.length ? (
         <div className="grid items-start gap-5 lg:grid-cols-2">
-          {appointments.map((appointment) => (
+          {appointmentRecords.map((record) => (
             <AppointmentCard
-              key={appointment.id}
-              appointment={appointment}
+              key={record.id}
+              appointment={toCard(record)}
               showDetails={false}
               actions={
                 <>
-                  <Button full icon={<TablerIcon name="edit" />} onClick={() => { setEditingAppointment(toFormAppointment(appointment)); setShowForm(true); }} variant="secondary">แก้ไขนัดหมาย</Button>
-                  <Button full icon={<TablerIcon name="trash" />} onClick={() => handleDelete(appointment.id)} variant="danger">ลบนัดหมาย</Button>
+                  <Button full icon={<TablerIcon name="edit" />} onClick={() => { setEditingAppointment(record); setShowForm(true); }} variant="secondary">แก้ไขนัดหมาย</Button>
+                  <Button full icon={<TablerIcon name="trash" />} onClick={() => handleDelete(record.id)} variant="danger">ลบนัดหมาย</Button>
                 </>
               }
             />

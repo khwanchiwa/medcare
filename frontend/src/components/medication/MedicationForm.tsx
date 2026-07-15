@@ -3,9 +3,8 @@
 import { type FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { saveMedication } from "@/features/health/api";
+import { saveMedication, type MedicationRecord } from "@/features/health/api";
 import { ApiError } from "@/lib/api-client";
-import type { Medication } from "@/mocks/mock-medications";
 import { Button } from "../ui/button";
 import { Card } from "../ui/card";
 import { Input } from "../ui/input";
@@ -21,7 +20,7 @@ export function MedicationForm({
   onSaved,
 }: {
   mode: "edit" | "view";
-  medication?: Medication;
+  medication?: MedicationRecord;
   patientId?: string;
   returnTo?: string;
   onSaved?: () => void;
@@ -29,12 +28,12 @@ export function MedicationForm({
   const router = useRouter();
   const [name, setName] = useState(medication?.name ?? "");
   const [dosage, setDosage] = useState(medication?.dosage ?? "");
-  const [quantity, setQuantity] = useState("1 เม็ด");
+  const [quantity, setQuantity] = useState(medication?.quantity ?? "1 เม็ด");
   const [frequency, setFrequency] = useState(medication?.frequency ?? "");
-  const [times, setTimes] = useState<string[]>(medication?.times.length ? medication.times : [""]);
+  const [times, setTimes] = useState<string[]>(medication?.reminder_times.length ? medication.reminder_times : [""]);
   const [instructions, setInstructions] = useState(medication?.instructions ?? "");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate] = useState(medication?.start_date ?? "");
+  const [endDate, setEndDate] = useState(medication?.end_date ?? "");
   const [error, setError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
