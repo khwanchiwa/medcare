@@ -119,6 +119,34 @@ docker compose up --build
 
 ---
 
+## ส่งต่อให้คนอื่นใช้ (Deploy for others)
+
+repo นี้ไม่มี state ผูกกับผู้พัฒนาเดิม — ใครก็ deploy ได้ด้วย Supabase + config ของตัวเอง
+สิ่งที่ผู้เอาไปใช้ต้องเตรียม (ไม่มีใน repo โดยตั้งใจ):
+
+**1. Supabase ของตัวเอง** — สร้าง project, รัน migration (หัวข้อที่ 1), แล้วเอา keys ใส่
+`backend/.env` (ไฟล์นี้ถูก gitignore — ต้องสร้างเอง ไม่ได้มากับ repo)
+
+**2. backend + ocr-service ต้องอยู่บนโฮสต์ที่มี public URL + HTTPS** (ไม่ใช่ localhost)
+- Vercel อยู่บนอินเทอร์เน็ตสาธารณะ จึง **เรียก backend ที่ `localhost` ไม่ได้**
+- โฮสต์จริง: VPS / Cloud Run / Railway แล้ว `docker compose up --build -d`
+- อยากทดสอบเร็วๆ จากเครื่องตัวเอง เปิด tunnel ไปที่ backend แล้วเอา URL ไปใส่ Vercel:
+  ```bash
+  cloudflared tunnel --url http://localhost:8000
+  # หรือ    ngrok http 8000
+  ```
+
+**3. Vercel (frontend)**
+- ตั้ง env `NEXT_PUBLIC_API_BASE_URL=https://<backend-domain>/api/v1` (เป็น build-time — ต้องตั้งก่อน build)
+- ตั้ง `FRONTEND_ORIGINS` / `FRONTEND_ORIGIN_REGEX` ที่ backend ให้ครอบคลุมโดเมน Vercel
+  (regex อนุญาต `*.vercel.app` อยู่แล้ว — ถ้าใช้ custom domain ต้องเพิ่มเอง)
+
+**ความปลอดภัย**
+- ocr-service ไม่เปิดสู่ภายนอก มีแค่ backend เรียกผ่าน network ภายใน
+- `backend/.env` (secret) เป็นของแต่ละผู้ deploy — **อย่า commit ขึ้น git**
+
+---
+
 ## หมายเหตุ
 
 - **OCR รันบน CPU ได้เลย ไม่ต้องมี GPU/LLM ภายนอก** — ตัวช่วย Gemma เป็น optional ปิดไว้โดย default (`USE_GEMMA=false`)
