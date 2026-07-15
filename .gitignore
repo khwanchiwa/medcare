@@ -1,0 +1,8 @@
+.ocr-venv/
+backend/.env
+backend/.venv/
+backend/.qa-venv/
+backend/.pytest_cache/
+backend/**/__pycache__/
+backend/ocr-service.out.log
+backend/ocr-service.err.log

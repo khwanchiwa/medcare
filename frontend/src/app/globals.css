@@ -1,26 +1,63 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-navy-900: #17324D;
+  --color-navy-800: #155F8F;
+  --color-blue-600: #155F8F;
+  --color-blue-500: #2088C7;
+  --color-blue-100: #EDF8FF;
+  --color-sky-50: #F4FBFF;
+  --color-success-600: #24966B;
+  --color-success-100: #DFF8EF;
+  --color-amber-600: #A76500;
+  --color-amber-100: #FFF3D9;
+  --color-slate-800: #17324D;
+  --color-slate-600: #667B8F;
+  --color-slate-400: #8AA6B8;
+  --color-border: #D9E9F3;
+  --color-white: #FFFFFF;
+  --radius-card: 8px;
+  --radius-section: 8px;
+  --shadow-soft: 0 18px 50px rgba(27,108,158,0.14);
+  --font-serifThai: "Google Sans", "Google Sans Text", "Noto Sans Thai", Arial, sans-serif;
+  --font-sansThai: "Google Sans", "Google Sans Text", "Noto Sans Thai", Arial, sans-serif;
+  --font-mono: "Google Sans", "Google Sans Text", "Noto Sans Thai", Arial, sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { box-sizing: border-box; }
+html { min-width: 0; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  min-width: 0;
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(124,199,238,0.26), transparent 34%),
+    linear-gradient(135deg, #F6FCFF 0%, #E8F6FF 100%);
+  color: #17324D;
+  font-family: "Google Sans", "Google Sans Text", "Noto Sans Thai", Arial, sans-serif;
+  font-size: 16px;
+}
+a { text-decoration: none; }
+button, input, select, textarea { font: inherit; }
+:focus-visible {
+  outline: 3px solid #2088C7;
+  outline-offset: 3px;
+}
+input:focus,
+input:focus-visible,
+textarea:focus,
+textarea:focus-visible,
+select:focus,
+select:focus-visible {
+  outline: none;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
